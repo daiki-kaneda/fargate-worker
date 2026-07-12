@@ -6,3 +6,11 @@ node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# CDK context cache (contains account IDs and resource lookups)
+cdk.context.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
