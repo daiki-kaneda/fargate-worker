@@ -5,16 +5,20 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
     "cdk": "cdk"
   },
   "devDependencies": {
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
+    "aws-cdk": "2.1120.0",
+    "eslint": "^9.39.5",
     "jest": "^30",
     "ts-jest": "^29",
-    "aws-cdk": "2.1120.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.63.0"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.251.0",
