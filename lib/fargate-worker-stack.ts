@@ -109,5 +109,11 @@ export class FargateWorkerStack extends cdk.Stack {
       description: 'SNS topic ARN for developer operational alerts',
       exportName: `${this.stackName}-DeveloperAlertTopicArn`,
     });
+
+    new cdk.CfnOutput(this, 'DashboardUrl', {
+      value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home#dashboards:name=${compute.dashboard.dashboardName}`,
+      description: 'CloudWatch Dashboard URL for operational monitoring',
+      exportName: `${this.stackName}-DashboardUrl`,
+    });
   }
 }

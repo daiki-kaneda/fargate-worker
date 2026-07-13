@@ -32,7 +32,7 @@ RECEIVED → DOWNLOADING_PDF → SUMMARIZING → CONVERTING_SSML → GENERATING_
 ## エラーハンドリング規約
 - **パース不能なメッセージ**: 削除して捨てる（再試行しても意味がないため）
 - **処理失敗**: SQS メッセージを削除しない → `maxReceiveCount=3` 後に DLQ へ自動移動
-- 失敗時は必ず `jobRepository.update({ status: 'FAILED', errorMessage })` してから SNS 通知
+- 失敗時は必ず `jobRepository.update({ status: 'FAILED', errorMessage })` してから SES 通知
 
 ## ロギング規約
 ```typescript

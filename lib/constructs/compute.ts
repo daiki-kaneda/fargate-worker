@@ -13,6 +13,9 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { Construct } from 'constructs';
 
+/** CloudFormation で公開される Dashboard の URL 用 */
+const DASHBOARD_NAME = 'FargateWorker';
+
 export interface ComputeProps {
   queue: sqs.Queue;
   pdfBucket: s3.Bucket;
@@ -39,6 +42,7 @@ export class Compute extends Construct {
   public readonly service: ecs.FargateService;
   public readonly logGroup: logs.LogGroup;
   public readonly developerAlertTopic: sns.Topic;
+  public readonly dashboard: cloudwatch.Dashboard;
 
   constructor(scope: Construct, id: string, props: ComputeProps) {
     super(scope, id);
@@ -115,6 +119,7 @@ export class Compute extends Construct {
         SENDER_EMAIL_ADDRESS: props.senderEmailAddress,
         AWS_DEFAULT_REGION: cdk.Stack.of(this).region,
         LOG_LEVEL: 'INFO',
+        BEDROCK_MODEL_ID: 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0',
       },
     });
 
@@ -133,6 +138,7 @@ export class Compute extends Construct {
     });
 
     this.configureAutoScaling(props.queue);
+    this.dashboard = this.configureDashboard(props.queue);
     this.configureMonitoring();
   }
 
@@ -218,6 +224,77 @@ export class Compute extends Construct {
       metricAggregationType: appscaling.MetricAggregationType.MAXIMUM,
       evaluationPeriods: 5,
       datapointsToAlarm: 5,
+    });
+  }
+
+  /**
+   * 主要なオペレーション指標を一覧できる CloudWatch Dashboard を作成する。
+   *
+   * ウィジェット構成:
+   *   行 1: SQS visible / notVisible メッセージ数
+   *   行 2: ECS 実行中タスク数 / カスタムエラーカウント
+   */
+  private configureDashboard(queue: sqs.Queue): cloudwatch.Dashboard {
+    const visibleMessages = new cloudwatch.Metric({
+      namespace: 'AWS/SQS',
+      metricName: 'ApproximateNumberOfMessagesVisible',
+      dimensionsMap: { QueueName: queue.queueName },
+      statistic: 'Maximum',
+      period: cdk.Duration.minutes(1),
+      label: 'Visible Messages',
+    });
+
+    const notVisibleMessages = new cloudwatch.Metric({
+      namespace: 'AWS/SQS',
+      metricName: 'ApproximateNumberOfMessagesNotVisible',
+      dimensionsMap: { QueueName: queue.queueName },
+      statistic: 'Maximum',
+      period: cdk.Duration.minutes(1),
+      label: 'In-Flight Messages',
+    });
+
+    const runningTaskCount = new cloudwatch.Metric({
+      namespace: 'ECS/ContainerInsights',
+      metricName: 'RunningTaskCount',
+      dimensionsMap: {
+        ClusterName: this.cluster.clusterName,
+        ServiceName: this.service.serviceName,
+      },
+      statistic: 'Maximum',
+      period: cdk.Duration.minutes(1),
+      label: 'Running Tasks',
+    });
+
+    const errorCount = new cloudwatch.Metric({
+      namespace: 'FargateWorker',
+      metricName: 'ErrorCount',
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+      label: 'ERROR Logs / min',
+    });
+
+    return new cloudwatch.Dashboard(this, 'Dashboard', {
+      dashboardName: DASHBOARD_NAME,
+      widgets: [
+        [
+          new cloudwatch.GraphWidget({
+            title: 'SQS Queue Depth',
+            left: [visibleMessages],
+            right: [notVisibleMessages],
+            width: 12,
+          }),
+          new cloudwatch.GraphWidget({
+            title: 'ECS Running Tasks',
+            left: [runningTaskCount],
+            width: 6,
+          }),
+          new cloudwatch.GraphWidget({
+            title: 'Worker ERROR Logs',
+            left: [errorCount],
+            width: 6,
+          }),
+        ],
+      ],
     });
   }
 

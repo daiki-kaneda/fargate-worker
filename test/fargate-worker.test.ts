@@ -171,6 +171,7 @@ describe('Compute', () => {
             Match.objectLike({ Name: 'JOB_TABLE_NAME' }),
             Match.objectLike({ Name: 'SENDER_EMAIL_ADDRESS' }),
             Match.objectLike({ Name: 'LOG_LEVEL', Value: 'INFO' }),
+            Match.objectLike({ Name: 'BEDROCK_MODEL_ID', Value: 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0' }),
           ]),
         }),
       ]),
@@ -258,6 +259,13 @@ describe('Compute', () => {
       TreatMissingData: 'notBreaching',
     });
   });
+
+  test('CloudWatch Dashboard named FargateWorker is created with 4 widgets', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::CloudWatch::Dashboard', {
+      DashboardName: 'FargateWorker',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -282,6 +290,7 @@ describe('CloudFormation Outputs', () => {
       'ServiceName',
       'WorkerLogGroupName',
       'DeveloperAlertTopicArn',
+      'DashboardUrl',
     ];
     required.forEach((key) => {
       expect(outputKeys).toContain(key);

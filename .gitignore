@@ -10,6 +10,9 @@ cdk.out
 # CDK context cache (contains account IDs and resource lookups)
 cdk.context.json
 
+# Worker compiled output
+src/dist/
+
 # Environment variables
 .env
 .env.local

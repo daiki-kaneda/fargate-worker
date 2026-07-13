@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint (ESLint — CDK 側のみ。worker は TypeScript strict で担保)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install CDK dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ---------------------------------------------------------------------------
+  # CDK unit tests (lib/ + test/)
+  # ---------------------------------------------------------------------------
+  test-cdk:
+    name: Test CDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install CDK dependencies
+        run: npm ci
+
+      - name: Run CDK tests
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # Worker unit tests (src/)
+  # ---------------------------------------------------------------------------
+  test-worker:
+    name: Test Worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install worker dependencies
+        run: npm ci
+
+      - name: Run worker tests
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # Docker build (src/Dockerfile) — push は CDK deploy パイプラインで実施
+  # ---------------------------------------------------------------------------
+  build-docker:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: src
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
