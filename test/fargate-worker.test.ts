@@ -37,10 +37,10 @@ describe('Messaging', () => {
     });
   });
 
-  test('SNS notification topic is created', () => {
+  test('Developer alert SNS topic is created', () => {
     const template = buildTemplate();
-    // notificationTopic + developerAlertTopic = 2 topics
-    template.resourceCountIs('AWS::SNS::Topic', 2);
+    // developerAlertTopic のみ (通知は SES で行う)
+    template.resourceCountIs('AWS::SNS::Topic', 1);
   });
 });
 
@@ -98,7 +98,7 @@ describe('Registry', () => {
     });
   });
 
-  test('Fargate task role allows SQS, S3, DynamoDB, Bedrock, Polly, SNS', () => {
+  test('Fargate task role allows SQS, S3, DynamoDB, Bedrock, Polly, SES', () => {
     const template = buildTemplate();
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
@@ -108,7 +108,7 @@ describe('Registry', () => {
           Match.objectLike({ Sid: 'DynamoDbAccess' }),
           Match.objectLike({ Sid: 'BedrockAccess' }),
           Match.objectLike({ Sid: 'PollyAccess' }),
-          Match.objectLike({ Sid: 'SnsPublish' }),
+          Match.objectLike({ Sid: 'SesAccess' }),
         ]),
       },
     });
@@ -169,7 +169,7 @@ describe('Compute', () => {
             Match.objectLike({ Name: 'PDF_BUCKET_NAME' }),
             Match.objectLike({ Name: 'AUDIO_BUCKET_NAME' }),
             Match.objectLike({ Name: 'JOB_TABLE_NAME' }),
-            Match.objectLike({ Name: 'NOTIFICATION_TOPIC_ARN' }),
+            Match.objectLike({ Name: 'SENDER_EMAIL_ADDRESS' }),
             Match.objectLike({ Name: 'LOG_LEVEL', Value: 'INFO' }),
           ]),
         }),
@@ -275,7 +275,7 @@ describe('CloudFormation Outputs', () => {
       'PdfBucketName',
       'AudioBucketName',
       'JobTableName',
-      'NotificationTopicArn',
+      'SenderEmailAddress',
       'WorkerRepositoryUri',
       'TaskRoleArn',
       'ClusterName',

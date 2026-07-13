@@ -10,8 +10,8 @@ export class FargateWorkerStack extends cdk.Stack {
     super(scope, id, props);
 
     // デプロイ時に指定する SES 検証済み送信元メールアドレス。
-    // 例: cdk deploy --parameters SenderEmailAddress=noreply@yourdomain.com
-    const senderEmailParam = new cdk.CfnParameter(this, 'SenderEmailAddress', {
+    // 例: cdk deploy --parameters SenderEmail=noreply@yourdomain.com
+    const senderEmailParam = new cdk.CfnParameter(this, 'SenderEmail', {
       type: 'String',
       description: 'SES-verified sender email address for job notifications',
       allowedPattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
