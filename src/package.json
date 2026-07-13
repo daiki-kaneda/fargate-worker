@@ -1,0 +1,30 @@
+{
+  "name": "fargate-worker",
+  "version": "1.0.0",
+  "description": "Paper summarization Fargate worker",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3",
+    "@aws-sdk/client-dynamodb": "^3",
+    "@aws-sdk/client-polly": "^3",
+    "@aws-sdk/client-s3": "^3",
+    "@aws-sdk/client-sns": "^3",
+    "@aws-sdk/client-sqs": "^3",
+    "@aws-sdk/lib-dynamodb": "^3",
+    "@aws-sdk/s3-request-presigner": "^3",
+    "axios": "^1",
+    "pino": "^9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "ts-node": "^10",
+    "typescript": "^5"
+  }
+}
