@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 /**
@@ -44,16 +43,6 @@ export class Storage extends Construct {
         },
       ],
     });
-
-    // Polly の StartSpeechSynthesisTask は S3 への書き込みにサービスプリンシパルを使用する
-    this.audioBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowPollyWrite',
-        principals: [new iam.ServicePrincipal('polly.amazonaws.com')],
-        actions: ['s3:PutObject'],
-        resources: [`${this.audioBucket.bucketArn}/*`],
-      }),
-    );
 
     this.jobTable = new dynamodb.Table(this, 'JobTable', {
       partitionKey: { name: 'jobId', type: dynamodb.AttributeType.STRING },
