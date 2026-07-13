@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as sns from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
 
 /**
@@ -13,7 +12,6 @@ import { Construct } from 'constructs';
 export class Messaging extends Construct {
   public readonly queue: sqs.Queue;
   public readonly dlq: sqs.Queue;
-  public readonly notificationTopic: sns.Topic;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
@@ -34,10 +32,6 @@ export class Messaging extends Construct {
         maxReceiveCount: 3,
       },
       encryption: sqs.QueueEncryption.SQS_MANAGED,
-    });
-
-    this.notificationTopic = new sns.Topic(this, 'NotificationTopic', {
-      displayName: 'Paper Summarization Job Notifications',
     });
   }
 }

@@ -4,7 +4,6 @@ import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as sns from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
 
 export interface RegistryProps {
@@ -13,7 +12,6 @@ export interface RegistryProps {
   pdfBucket: s3.Bucket;
   audioBucket: s3.Bucket;
   jobTable: dynamodb.Table;
-  notificationTopic: sns.Topic;
 }
 
 /**
@@ -109,11 +107,14 @@ export class Registry extends Construct {
       }),
     );
 
+    // SES はリソースレベルの制御がアイデンティティ ARN 単位だが、
+    // 送信元アドレスは実行時に環境変数で渡されるため '*' で許可する。
+    // 最小権限が必要な場合は 'arn:aws:ses:REGION:ACCOUNT:identity/SENDER' に絞ること。
     this.taskRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'SnsPublish',
-        actions: ['sns:Publish'],
-        resources: [props.notificationTopic.topicArn],
+        sid: 'SesAccess',
+        actions: ['ses:SendEmail'],
+        resources: ['*'],
       }),
     );
   }

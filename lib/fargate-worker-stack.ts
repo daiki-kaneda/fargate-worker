@@ -9,6 +9,14 @@ export class FargateWorkerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // デプロイ時に指定する SES 検証済み送信元メールアドレス。
+    // 例: cdk deploy --parameters SenderEmailAddress=noreply@yourdomain.com
+    const senderEmailParam = new cdk.CfnParameter(this, 'SenderEmailAddress', {
+      type: 'String',
+      description: 'SES-verified sender email address for job notifications',
+      allowedPattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
+    });
+
     const messaging = new Messaging(this, 'Messaging');
     const storage = new Storage(this, 'Storage');
     const registry = new Registry(this, 'Registry', {
@@ -17,14 +25,13 @@ export class FargateWorkerStack extends cdk.Stack {
       pdfBucket: storage.pdfBucket,
       audioBucket: storage.audioBucket,
       jobTable: storage.jobTable,
-      notificationTopic: messaging.notificationTopic,
     });
     const compute = new Compute(this, 'Compute', {
       queue: messaging.queue,
       pdfBucket: storage.pdfBucket,
       audioBucket: storage.audioBucket,
       jobTable: storage.jobTable,
-      notificationTopic: messaging.notificationTopic,
+      senderEmailAddress: senderEmailParam.valueAsString,
       repository: registry.repository,
       taskRole: registry.taskRole,
     });
@@ -61,10 +68,10 @@ export class FargateWorkerStack extends cdk.Stack {
       exportName: `${this.stackName}-JobTableName`,
     });
 
-    new cdk.CfnOutput(this, 'NotificationTopicArn', {
-      value: messaging.notificationTopic.topicArn,
-      description: 'SNS topic ARN for job notifications',
-      exportName: `${this.stackName}-NotificationTopicArn`,
+    new cdk.CfnOutput(this, 'SenderEmailAddress', {
+      value: senderEmailParam.valueAsString,
+      description: 'SES sender email address for job notifications',
+      exportName: `${this.stackName}-SenderEmailAddress`,
     });
 
     new cdk.CfnOutput(this, 'WorkerRepositoryUri', {

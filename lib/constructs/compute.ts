@@ -18,7 +18,8 @@ export interface ComputeProps {
   pdfBucket: s3.Bucket;
   audioBucket: s3.Bucket;
   jobTable: dynamodb.Table;
-  notificationTopic: sns.Topic;
+  /** SES で検証済みの送信元メールアドレス。Fargate タスクの環境変数に渡される。 */
+  senderEmailAddress: string;
   repository: ecr.Repository;
   taskRole: iam.Role;
 }
@@ -111,7 +112,7 @@ export class Compute extends Construct {
         PDF_BUCKET_NAME: props.pdfBucket.bucketName,
         AUDIO_BUCKET_NAME: props.audioBucket.bucketName,
         JOB_TABLE_NAME: props.jobTable.tableName,
-        NOTIFICATION_TOPIC_ARN: props.notificationTopic.topicArn,
+        SENDER_EMAIL_ADDRESS: props.senderEmailAddress,
         AWS_DEFAULT_REGION: cdk.Stack.of(this).region,
         LOG_LEVEL: 'INFO',
       },
