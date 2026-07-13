@@ -10,38 +10,43 @@ function buildTemplate(): Template {
   return Template.fromStack(stack);
 }
 
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
 describe('Messaging', () => {
   test('SQS queue has 30-minute visibility timeout and long polling', () => {
     const template = buildTemplate();
     template.hasResourceProperties('AWS::SQS::Queue', {
-      VisibilityTimeout: 1800,         // 30 minutes
+      VisibilityTimeout: 1800,
       ReceiveMessageWaitTimeSeconds: 20,
     });
   });
 
   test('DLQ exists with 14-day retention', () => {
     const template = buildTemplate();
-    template.resourceCountIs('AWS::SQS::Queue', 2); // queue + dlq
+    template.resourceCountIs('AWS::SQS::Queue', 2);
     template.hasResourceProperties('AWS::SQS::Queue', {
-      MessageRetentionPeriod: 1209600, // 14 days
+      MessageRetentionPeriod: 1209600,
     });
   });
 
   test('Main queue has a redrive policy pointing to the DLQ', () => {
     const template = buildTemplate();
     template.hasResourceProperties('AWS::SQS::Queue', {
-      RedrivePolicy: Match.objectLike({
-        maxReceiveCount: 3,
-      }),
+      RedrivePolicy: Match.objectLike({ maxReceiveCount: 3 }),
     });
   });
 
-  test('SNS topic is created', () => {
+  test('SNS notification topic is created', () => {
     const template = buildTemplate();
-    template.resourceCountIs('AWS::SNS::Topic', 1);
+    // notificationTopic + developerAlertTopic = 2 topics
+    template.resourceCountIs('AWS::SNS::Topic', 2);
   });
 });
 
+// ---------------------------------------------------------------------------
+// Storage
+// ---------------------------------------------------------------------------
 describe('Storage', () => {
   test('Two S3 buckets are created with public access blocked', () => {
     const template = buildTemplate();
@@ -82,6 +87,9 @@ describe('Storage', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
 describe('Registry', () => {
   test('ECR repository has image scan on push enabled', () => {
     const template = buildTemplate();
@@ -121,6 +129,140 @@ describe('Registry', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Compute
+// ---------------------------------------------------------------------------
+describe('Compute', () => {
+  test('Two Gateway VPC endpoints are created (S3 and DynamoDB)', () => {
+    const template = buildTemplate();
+    // ServiceName は Fn::Join で生成されるためリソース数でのみ検証
+    template.resourceCountIs('AWS::EC2::VPCEndpoint', 2);
+    template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+      VpcEndpointType: 'Gateway',
+    });
+  });
+
+  test('ECS cluster is created with Container Insights enabled', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::ECS::Cluster', {
+      ClusterSettings: Match.arrayWith([
+        { Name: 'containerInsights', Value: 'enabled' },
+      ]),
+    });
+  });
+
+  test('Fargate task definition has 1 vCPU and 2 GB memory', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::ECS::TaskDefinition', {
+      Cpu: '1024',
+      Memory: '2048',
+    });
+  });
+
+  test('Container has required environment variables', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::ECS::TaskDefinition', {
+      ContainerDefinitions: Match.arrayWith([
+        Match.objectLike({
+          Environment: Match.arrayWith([
+            Match.objectLike({ Name: 'QUEUE_URL' }),
+            Match.objectLike({ Name: 'PDF_BUCKET_NAME' }),
+            Match.objectLike({ Name: 'AUDIO_BUCKET_NAME' }),
+            Match.objectLike({ Name: 'JOB_TABLE_NAME' }),
+            Match.objectLike({ Name: 'NOTIFICATION_TOPIC_ARN' }),
+            Match.objectLike({ Name: 'LOG_LEVEL', Value: 'INFO' }),
+          ]),
+        }),
+      ]),
+    });
+  });
+
+  test('ECS service starts with desired count 0 (scale-from-zero pattern)', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::ECS::Service', {
+      DesiredCount: 0,
+      LaunchType: 'FARGATE',
+    });
+  });
+
+  test('Application Auto Scaling target is registered with min=0 and max=10', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::ApplicationAutoScaling::ScalableTarget', {
+      MinCapacity: 0,
+      MaxCapacity: 10,
+      ServiceNamespace: 'ecs',
+    });
+  });
+
+  test('Two step scaling policies: ScaleUp (6:1 ratio) and ScaleToZero', () => {
+    const template = buildTemplate();
+
+    // ① ScaleUp: EXACT_CAPACITY, 10 ステップで 6:1 比率を実現
+    template.hasResourceProperties('AWS::ApplicationAutoScaling::ScalingPolicy', {
+      PolicyType: 'StepScaling',
+      StepScalingPolicyConfiguration: Match.objectLike({
+        AdjustmentType: 'ExactCapacity',
+        Cooldown: 60,
+        StepAdjustments: Match.arrayWith([
+          Match.objectLike({ ScalingAdjustment: 1 }),  // 1〜5 件 → 1 タスク
+          Match.objectLike({ ScalingAdjustment: 10 }), // 54+ 件 → 10 タスク
+        ]),
+      }),
+    });
+
+    // ② ScaleToZero: EXACT_CAPACITY, 5 分評価
+    template.hasResourceProperties('AWS::ApplicationAutoScaling::ScalingPolicy', {
+      PolicyType: 'StepScaling',
+      StepScalingPolicyConfiguration: Match.objectLike({
+        AdjustmentType: 'ExactCapacity',
+        Cooldown: 300,
+      }),
+    });
+
+    // Step Scaling ポリシーのみ (Target Tracking なし)
+    const policies = template.findResources('AWS::ApplicationAutoScaling::ScalingPolicy');
+    expect(Object.keys(policies).length).toBeGreaterThanOrEqual(2);
+    Object.values(policies).forEach((policy) => {
+      expect((policy as { Properties: { PolicyType: string } }).Properties.PolicyType).toBe('StepScaling');
+    });
+  });
+
+  test('CloudWatch log group is created with 1-month retention', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::Logs::LogGroup', {
+      LogGroupName: '/fargate-worker/worker',
+      RetentionInDays: 30,
+    });
+  });
+
+  test('Metric filter counts ERROR level JSON logs', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::Logs::MetricFilter', {
+      FilterPattern: Match.stringLikeRegexp('ERROR'),
+      MetricTransformations: Match.arrayWith([
+        Match.objectLike({
+          MetricName: 'ErrorCount',
+          MetricNamespace: 'FargateWorker',
+          DefaultValue: 0,
+        }),
+      ]),
+    });
+  });
+
+  test('High error rate alarm notifies developer alert topic', () => {
+    const template = buildTemplate();
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      Threshold: 5,
+      EvaluationPeriods: 1,
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+      TreatMissingData: 'notBreaching',
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CloudFormation Outputs
+// ---------------------------------------------------------------------------
 describe('CloudFormation Outputs', () => {
   test('All required outputs are present', () => {
     const template = buildTemplate();
@@ -136,6 +278,10 @@ describe('CloudFormation Outputs', () => {
       'NotificationTopicArn',
       'WorkerRepositoryUri',
       'TaskRoleArn',
+      'ClusterName',
+      'ServiceName',
+      'WorkerLogGroupName',
+      'DeveloperAlertTopicArn',
     ];
     required.forEach((key) => {
       expect(outputKeys).toContain(key);
