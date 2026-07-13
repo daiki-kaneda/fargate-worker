@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { Messaging } from './constructs/messaging';
 import { Storage } from './constructs/storage';
 import { Registry } from './constructs/registry';
+import { Compute } from './constructs/compute';
 
 export class FargateWorkerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -18,9 +19,17 @@ export class FargateWorkerStack extends cdk.Stack {
       jobTable: storage.jobTable,
       notificationTopic: messaging.notificationTopic,
     });
+    const compute = new Compute(this, 'Compute', {
+      queue: messaging.queue,
+      pdfBucket: storage.pdfBucket,
+      audioBucket: storage.audioBucket,
+      jobTable: storage.jobTable,
+      notificationTopic: messaging.notificationTopic,
+      repository: registry.repository,
+      taskRole: registry.taskRole,
+    });
 
     // --- CloudFormation Outputs ---
-    // ワーカーコンテナの環境変数などでの参照に使用するための出力
 
     new cdk.CfnOutput(this, 'QueueUrl', {
       value: messaging.queue.queueUrl,
@@ -68,6 +77,30 @@ export class FargateWorkerStack extends cdk.Stack {
       value: registry.taskRole.roleArn,
       description: 'IAM task role ARN for Fargate tasks',
       exportName: `${this.stackName}-TaskRoleArn`,
+    });
+
+    new cdk.CfnOutput(this, 'ClusterName', {
+      value: compute.cluster.clusterName,
+      description: 'ECS cluster name',
+      exportName: `${this.stackName}-ClusterName`,
+    });
+
+    new cdk.CfnOutput(this, 'ServiceName', {
+      value: compute.service.serviceName,
+      description: 'ECS service name',
+      exportName: `${this.stackName}-ServiceName`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkerLogGroupName', {
+      value: compute.logGroup.logGroupName,
+      description: 'CloudWatch log group name for worker logs',
+      exportName: `${this.stackName}-WorkerLogGroupName`,
+    });
+
+    new cdk.CfnOutput(this, 'DeveloperAlertTopicArn', {
+      value: compute.developerAlertTopic.topicArn,
+      description: 'SNS topic ARN for developer operational alerts',
+      exportName: `${this.stackName}-DeveloperAlertTopicArn`,
     });
   }
 }
