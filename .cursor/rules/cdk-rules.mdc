@@ -1,0 +1,41 @@
+---
+description: CDK インフラ実装のパターン・制約・スケーリング設計
+globs: lib/**/*.ts
+alwaysApply: false
+---
+
+# CDK 実装ルール
+
+## コンストラクト設計
+- 新しいリソースは `lib/constructs/` 以下に Construct クラスとして追加する
+- `FargateWorkerStack` はコンストラクトを組み合わせるだけにする（リソース定義を直接書かない）
+- 公開プロパティ（`queue`, `cluster` など）は `public readonly` で宣言する
+
+## スケーリング設計（Step Scaling のみ）
+SQS メッセージ数とタスク数の比率は 6:1 を基準に `EXACT_CAPACITY` で設定。
+
+```
+visible  1〜5  件 →  1 タスク
+visible  6〜11 件 →  2 タスク   ... (6 件単位でインクリメント)
+visible 54+   件 → 10 タスク
+```
+
+- Target Tracking は CDK L2 が `MathExpression` を受け付けないため使用しない
+  （CDK issue #20659 — 2026 年現在未解決）
+- ScaleToZero: `visible + notVisible = 0` が **5 分継続**で 0 タスクに設定
+  - `upper: 0` は `LESS_THAN_OR_EQUAL_TO_THRESHOLD` として機能するため metric=0 でも発火する
+
+## VPC 設計
+- NAT Gateway なし・パブリックサブネット + パブリック IP でコスト削減
+- S3・DynamoDB は Gateway VPC Endpoint（無料）でルーティング
+- ワーカーはリッスンポートを持たないためセキュリティグループのインバウンドルールは不要
+
+## IAM 最小権限
+- Bedrock: `inference-profile/ap.anthropic.claude-3-5-*` のみ許可
+- S3: `s3:PutObject` / `s3:GetObject` のみ（バケット操作は不可）
+- DynamoDB: `PutItem` / `GetItem` / `UpdateItem` / `Query` のみ
+
+## 禁止事項
+- `RemovalPolicy.DESTROY` を S3・DynamoDB に使わない（`RETAIN` を使用）
+- `containerInsights` の旧プロパティは使わない → `containerInsightsV2: ecs.ContainerInsights.ENABLED`
+- `pointInTimeRecovery` は deprecated → `pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true }`

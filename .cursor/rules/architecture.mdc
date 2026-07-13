@@ -1,0 +1,35 @@
+---
+description: プロジェクト全体のアーキテクチャ概要とレイヤー依存ルール
+alwaysApply: true
+---
+
+# アーキテクチャ概要
+
+## システム構成
+論文 PDF URL を SQS で受け取り、Bedrock (Claude 3.5) で要約→SSML 変換、Polly で音声合成、SNS で通知する Fargate ワーカー。
+
+```
+SQS → Fargate Worker → S3 (PDF/Audio) / DynamoDB (ジョブ) / SNS (通知)
+```
+
+## レイヤー構成（クリーンアーキテクチャ）
+
+```
+src/
+  domain/        # 外部依存ゼロ。entities (型) と ports (interface) のみ
+  application/   # ユースケース。domain のみ import 可
+  infrastructure/# AWS SDK 実装。ports を implements する
+  shared/        # ロガーなど横断ユーティリティ
+```
+
+## 依存の向き（厳守）
+- `domain` は何も import しない
+- `application` は `domain` と `shared` のみ import 可
+- `infrastructure` は `domain` / `application` / `shared` を import 可
+- **AWS SDK は `infrastructure/aws/` 以下にのみ書く**
+
+## CDK インフラ構成 (`lib/`)
+- `Messaging` — SQS (main + DLQ) + SNS
+- `Storage` — S3 (pdf/audio) + DynamoDB
+- `Registry` — ECR + Fargate タスクロール (IAM)
+- `Compute` — VPC + ECS Fargate + Step Scaling + CloudWatch

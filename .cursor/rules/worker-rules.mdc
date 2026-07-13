@@ -1,0 +1,52 @@
+---
+description: ワーカーアプリのビジネスルール・スキーマ・エラー処理規約
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# ワーカービジネスルール
+
+## SQS メッセージスキーマ (`SummarizationMessage`)
+```typescript
+{
+  jobId: string;           // クライアント生成 UUID（冪等性キー）
+  pdfUrl: string;          // 論文 PDF の公開 URL
+  tone: 'casual' | 'formal' | 'academic';
+  length: 'short' | 'medium' | 'long';  // 300 / 600 / 1200 語
+  speakerType: string;     // Polly VoiceId (例: 'Takumi', 'Joanna')
+  notificationEmail: string;
+}
+```
+
+## ジョブステータス遷移
+```
+RECEIVED → DOWNLOADING_PDF → SUMMARIZING → CONVERTING_SSML → GENERATING_AUDIO → COMPLETED
+                                                                                 ↘ FAILED
+```
+各ステップの開始時に DynamoDB ステータスを更新してから処理する。
+
+## 冪等性
+- `findByMessageId(messageId)` で GSI `messageId-index` を照会する
+- 既に `COMPLETED` なら処理をスキップして SQS メッセージを削除する
+
+## エラーハンドリング規約
+- **パース不能なメッセージ**: 削除して捨てる（再試行しても意味がないため）
+- **処理失敗**: SQS メッセージを削除しない → `maxReceiveCount=3` 後に DLQ へ自動移動
+- 失敗時は必ず `jobRepository.update({ status: 'FAILED', errorMessage })` してから SNS 通知
+
+## ロギング規約
+```typescript
+// ✅ 必ず構造化フィールドで出力する
+logger.info({ msg: 'PDF downloaded', s3Key, sizeBytes });
+logger.error({ msg: 'Job failed', error: errorMessage, stack });
+
+// ❌ 文字列だけのログは書かない
+logger.info('PDF downloaded');
+```
+- CloudWatch Metric Filter は `$.level` フィールドで ERROR をカウントしている
+- ジョブスコープのログは `logger.child({ jobId })` で子ロガーを使う
+
+## AWS クライアントの注意点
+- Bedrock モデル ID は `Config.bedrockModelId` から取得する（ハードコード禁止）
+- Polly は `engine: 'neural'` を使用。`VOICE_LANGUAGE_MAP` にない VoiceId はデフォルト `en-US`
+- 署名付き URL の有効期間は `Config.presignedUrlExpiresIn`（デフォルト 7 日）
