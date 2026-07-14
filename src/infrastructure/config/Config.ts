@@ -11,7 +11,7 @@ export interface Config {
   presignedUrlExpiresIn: number;
   /**
    * Bedrock 推論プロファイル ID。
-   * AP リージョン向けクロスリージョン推論: ap.anthropic.claude-3-5-sonnet-20241022-v2:0
+   * AP リージョン向けクロスリージョン推論: apac.anthropic.claude-3-5-sonnet-20241022-v2:0
    */
   bedrockModelId: string;
 }
@@ -33,6 +33,6 @@ export function createConfig(): Config {
     logLevel: process.env['LOG_LEVEL'] ?? 'INFO',
     presignedUrlExpiresIn: Number(process.env['PRESIGNED_URL_EXPIRES_IN'] ?? 604800),
     bedrockModelId:
-      process.env['BEDROCK_MODEL_ID'] ?? 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0',
+      process.env['BEDROCK_MODEL_ID'] ?? 'apac.anthropic.claude-3-5-sonnet-20241022-v2:0',
   };
 }

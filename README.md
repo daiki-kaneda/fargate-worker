@@ -127,7 +127,7 @@ cd src && npm run test:coverage
 | `AUDIO_BUCKET_NAME` | ✅ | — | 音声ファイル S3 バケット名 |
 | `JOB_TABLE_NAME` | ✅ | — | DynamoDB テーブル名 |
 | `SENDER_EMAIL_ADDRESS` | ✅ | — | SES 送信元メールアドレス |
-| `BEDROCK_MODEL_ID` | ✅ | `ap.anthropic.claude-3-5-sonnet-20241022-v2:0` | Bedrock 推論プロファイル ID |
+| `BEDROCK_MODEL_ID` | ✅ | `apac.anthropic.claude-3-5-sonnet-20241022-v2:0` | Bedrock 推論プロファイル ID |
 | `AWS_DEFAULT_REGION` | — | `ap-northeast-1` | AWS リージョン |
 | `LOG_LEVEL` | — | `INFO` | ログレベル (`DEBUG`/`INFO`/`WARN`/`ERROR`) |
 | `PRESIGNED_URL_EXPIRES_IN` | — | `604800` (7日) | 音声ファイル署名付き URL の有効期間 (秒) |

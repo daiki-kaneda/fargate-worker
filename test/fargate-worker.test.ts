@@ -171,7 +171,7 @@ describe('Compute', () => {
             Match.objectLike({ Name: 'JOB_TABLE_NAME' }),
             Match.objectLike({ Name: 'SENDER_EMAIL_ADDRESS' }),
             Match.objectLike({ Name: 'LOG_LEVEL', Value: 'INFO' }),
-            Match.objectLike({ Name: 'BEDROCK_MODEL_ID', Value: 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0' }),
+            Match.objectLike({ Name: 'BEDROCK_MODEL_ID', Value: 'apac.anthropic.claude-3-5-sonnet-20241022-v2:0' }),
           ]),
         }),
       ]),

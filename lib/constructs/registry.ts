@@ -89,7 +89,7 @@ export class Registry extends Construct {
         actions: ['bedrock:InvokeModel'],
         resources: [
           'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-*',
-          `arn:aws:bedrock:*:${cdk.Stack.of(this).account}:inference-profile/ap.anthropic.claude-3-5-*`,
+          `arn:aws:bedrock:*:${cdk.Stack.of(this).account}:inference-profile/apac.anthropic.claude-3-5-*`,
         ],
       }),
     );
