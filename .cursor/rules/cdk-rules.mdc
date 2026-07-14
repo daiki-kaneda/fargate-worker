@@ -31,7 +31,7 @@ visible 54+   件 → 10 タスク
 - ワーカーはリッスンポートを持たないためセキュリティグループのインバウンドルールは不要
 
 ## IAM 最小権限
-- Bedrock: `inference-profile/apac.anthropic.claude-3-5-*` のみ許可
+- Bedrock: `inference-profile/jp.anthropic.claude-sonnet-4-5-*` のみ許可
 - S3: `s3:PutObject` / `s3:GetObject` のみ（バケット操作は不可）
 - DynamoDB: `PutItem` / `GetItem` / `UpdateItem` / `Query` のみ
 

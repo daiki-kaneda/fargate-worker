@@ -82,14 +82,14 @@ export class Registry extends Construct {
       }),
     );
 
-    // ap リージョンのクロスリージョン推論プロファイルを含む
+    // jp リージョンの日本国内クロスリージョン推論プロファイルを含む
     this.taskRole.addToPolicy(
       new iam.PolicyStatement({
         sid: 'BedrockAccess',
         actions: ['bedrock:InvokeModel'],
         resources: [
-          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-*',
-          `arn:aws:bedrock:*:${cdk.Stack.of(this).account}:inference-profile/apac.anthropic.claude-3-5-*`,
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-*',
+          `arn:aws:bedrock:*:${cdk.Stack.of(this).account}:inference-profile/jp.anthropic.claude-sonnet-4-5-*`,
         ],
       }),
     );

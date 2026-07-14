@@ -119,7 +119,7 @@ export class Compute extends Construct {
         SENDER_EMAIL_ADDRESS: props.senderEmailAddress,
         AWS_DEFAULT_REGION: cdk.Stack.of(this).region,
         LOG_LEVEL: 'INFO',
-        BEDROCK_MODEL_ID: 'apac.anthropic.claude-3-5-sonnet-20241022-v2:0',
+        BEDROCK_MODEL_ID: 'jp.anthropic.claude-sonnet-4-5-20250929-v1:0',
       },
     });
 
