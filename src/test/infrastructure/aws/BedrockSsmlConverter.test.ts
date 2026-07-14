@@ -77,6 +77,19 @@ describe('BedrockSsmlConverter', () => {
     expect(result).toBe('<speak>Hello world.</speak>');
   });
 
+  test('convert strips Neural-unsupported tags from Bedrock response', async () => {
+    const withForbidden =
+      '<speak><emphasis level="moderate">Title</emphasis><break time="500ms"/>' +
+      '<prosody rate="slow">Body text.</prosody></speak>';
+    mockSend.mockResolvedValue({ body: makeResponseBody(withForbidden) });
+
+    const result = await converter.convert('Title. Body text.');
+
+    expect(result).toBe('<speak>Title<break time="500ms"/>Body text.</speak>');
+    expect(result).not.toContain('<emphasis');
+    expect(result).not.toContain('<prosody');
+  });
+
   test('convert throws when output is missing <speak> tag', async () => {
     const invalidSsml = 'Hello world without speak tags';
     mockSend.mockResolvedValue({ body: makeResponseBody(invalidSsml) });
