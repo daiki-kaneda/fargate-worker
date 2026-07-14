@@ -68,6 +68,15 @@ describe('BedrockSsmlConverter', () => {
     );
   });
 
+  test('convert strips markdown code fences from Bedrock response', async () => {
+    const wrapped = '```xml\n<speak>Hello world.</speak>\n```';
+    mockSend.mockResolvedValue({ body: makeResponseBody(wrapped) });
+
+    const result = await converter.convert('Hello world.');
+
+    expect(result).toBe('<speak>Hello world.</speak>');
+  });
+
   test('convert throws when output is missing <speak> tag', async () => {
     const invalidSsml = 'Hello world without speak tags';
     mockSend.mockResolvedValue({ body: makeResponseBody(invalidSsml) });

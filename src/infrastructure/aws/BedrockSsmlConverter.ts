@@ -2,15 +2,31 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import { SsmlConverterPort } from '../../domain/ports/SsmlConverterPort';
 import { Logger } from '../../shared/logger/Logger';
 
-const SYSTEM_PROMPT = `You are an SSML markup expert. Convert the provided text into Amazon Polly-compatible SSML.
+const SYSTEM_PROMPT = `You convert plain text into Amazon Polly-compatible SSML for the neural engine.
 
-Rules:
-- Wrap the entire output in <speak> tags.
+Output format (CRITICAL):
+- Return ONLY raw SSML XML. Your entire response must start with <speak> and end with </speak>.
+- Never wrap output in markdown code fences (no \`\`\`xml, no \`\`\`, no backticks).
+- Never add explanations, prefixes, or suffixes before or after the SSML.
+
+SSML rules:
+- Wrap the entire output in a single <speak>...</speak> block.
 - Add <break time="500ms"/> between paragraphs.
 - Use <emphasis level="moderate"> for key terms.
-- Add <prosody rate="slow"> around complex sentences.
-- Do NOT include markdown, code fences, or any text outside the <speak>...</speak> block.
-- Keep all original content — do not summarize or omit anything.`;
+- Use <prosody rate="slow"> around long or complex sentences.
+- Escape XML special characters in text content (& → &amp;, < → &lt;, > → &gt;).
+- Keep all original content — do not summarize or omit anything.
+
+Example output:
+<speak>Hello <break time="500ms"/> world.</speak>`;
+
+/** Bedrock が markdown フェンス付きで返した場合に Polly 向け SSML だけを取り出す。 */
+function extractSsml(raw: string): string {
+  let text = raw.trim();
+  text = text.replace(/^```(?:xml)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+  const match = text.match(/<speak>[\s\S]*<\/speak>/i);
+  return (match ? match[0] : text).trim();
+}
 
 export class BedrockSsmlConverter implements SsmlConverterPort {
   private readonly client: BedrockRuntimeClient;
@@ -50,9 +66,13 @@ export class BedrockSsmlConverter implements SsmlConverterPort {
       content: Array<{ type: string; text: string }>;
     };
 
-    const ssml = responseBody.content.find((c) => c.type === 'text')?.text;
-    if (!ssml) throw new Error('Bedrock SSML conversion returned empty response');
-    if (!ssml.includes('<speak>')) throw new Error('Bedrock SSML output is missing <speak> tag');
+    const raw = responseBody.content.find((c) => c.type === 'text')?.text;
+    if (!raw) throw new Error('Bedrock SSML conversion returned empty response');
+
+    const ssml = extractSsml(raw);
+    if (!ssml.startsWith('<speak>') || !ssml.endsWith('</speak>')) {
+      throw new Error('Bedrock SSML output is missing <speak> tag');
+    }
 
     this.logger.debug({ msg: 'SSML conversion completed', outputLength: ssml.length });
     return ssml;
